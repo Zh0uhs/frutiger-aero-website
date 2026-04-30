@@ -1,13 +1,19 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
   ArrowUpRight,
   ChevronRight,
   Cloud,
+  CloudRain,
+  CloudSnow,
   Home,
   Leaf,
+  Moon,
   Music2,
   Pause,
   Play,
@@ -15,7 +21,11 @@ import {
   SkipBack,
   SkipForward,
   Sun,
+  Wind,
 } from "lucide-react"
+import { useWeather } from "@/hooks/useWeather"
+import { useTime } from "@/hooks/useTime"
+import { useAudio } from "@/hooks/useAudio"
 
 // Reusable glass panel utility classes (Frutiger Aero glassmorphism)
 const glass =
@@ -81,14 +91,12 @@ function TiltCard({
       const vh = Math.max(window.innerHeight, 1)
       const dx = (mouse.x - cx) / (vw / 2)
       const dy = (mouse.y - cy) / (vh / 2)
-      const nx = Math.max(-1, Math.min(1, dx))
-      const ny = Math.max(-1, Math.min(1, dy))
 
       // Card "looks at" the cursor: rotateY follows X, rotateX inverse of Y
-      state.current.trx = -ny * max
-      state.current.try_ = nx * max
-      state.current.ttx = nx * parallax
-      state.current.tty = ny * parallax
+      state.current.trx = -dy * max
+      state.current.try_ = dx * max
+      state.current.ttx = dx * parallax
+      state.current.tty = dy * parallax
 
       // Lerp current toward target for smoothness
       state.current.rx += (state.current.trx - state.current.rx) * ease
@@ -111,8 +119,7 @@ function TiltCard({
 
   return (
     <div
-      className="[perspective:1200px] [transform-style:preserve-3d]"
-      style={{ willChange: "transform" }}
+      className="[perspective:1200px] [transform-style:preserve-3d] [isolation:isolate]"
     >
       <div
         ref={ref}
@@ -183,13 +190,16 @@ export function HarmonyHero() {
 
 /* ---------- Navigation ---------- */
 function Navigation() {
+  const pathname = usePathname()
+
   const items = [
-    { label: "Home", active: true },
-    { label: "Services" },
-    { label: "Gallery" },
-    { label: "About Us" },
-    { label: "Contact" },
+    { label: "Home", href: "/", active: pathname === "/" },
+    { label: "Services", href: "/services", active: pathname === "/services" },
+    { label: "Gallery", href: "/gallery", active: pathname === "/gallery" },
+    { label: "About Us", href: "/about", active: pathname === "/about" },
+    { label: "Contact", href: "/contact", active: pathname === "/contact" },
   ]
+
   return (
     <nav className={`${glass} w-56 px-6 py-6`} aria-label="Primary">
       <ul className="flex flex-col gap-5 text-white">
@@ -203,14 +213,14 @@ function Navigation() {
               }`}
               aria-hidden
             />
-            <a
-              href="#"
+            <Link
+              href={item.href}
               className={`text-lg tracking-wide drop-shadow-sm transition-colors ${
                 item.active ? "font-medium text-white" : "text-white/85 hover:text-white"
               }`}
             >
               {item.label}
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
@@ -247,7 +257,18 @@ function NaturalBalanceCard() {
 function HeroText() {
   return (
     <div className="flex flex-col items-center text-center text-white">
-      <h1 className="text-5xl leading-[1.05] font-semibold tracking-tight text-balance drop-shadow-[0_2px_12px_rgba(31,77,122,0.35)] md:text-6xl lg:text-7xl">
+      <h1
+        className="text-5xl leading-[1.05] font-semibold tracking-tight text-balance md:text-6xl lg:text-7xl"
+        style={{
+          textShadow: `
+            0 0 20px rgba(255, 255, 255, 0.9),
+            0 0 40px rgba(255, 255, 255, 0.6),
+            0 0 60px rgba(255, 255, 255, 0.4),
+            0 0 80px rgba(200, 220, 255, 0.3),
+            0 2px 12px rgba(31, 77, 122, 0.5)
+          `,
+        }}
+      >
         Future
         <br />
         of Harmony
@@ -263,6 +284,7 @@ function HeroText() {
       <button
         type="button"
         className={`${glass} mt-8 inline-flex items-center gap-3 px-6 py-3 text-white transition hover:bg-white/25`}
+        onClick={() => window.location.href = '/services'}
       >
         <span className="grid size-8 place-items-center rounded-full bg-white/30 backdrop-blur">
           <Play className="size-4 translate-x-[1px] fill-white" aria-hidden />
@@ -275,50 +297,164 @@ function HeroText() {
 
 /* ---------- Weather widget ---------- */
 function WeatherWidget() {
+  const weather = useWeather()
+  const { time, date, dayOfWeek } = useTime()
+
+  const WeatherIcon = () => {
+    if (weather.isLoading) {
+      return <Cloud className="size-10 fill-white/90 stroke-white/70" aria-hidden />
+    }
+
+    const iconMap: Record<string, React.ReactNode> = {
+      sun: <Sun className="size-10 fill-yellow-300 stroke-yellow-400" aria-hidden />,
+      cloud: <Cloud className="size-10 fill-white/90 stroke-white/70" aria-hidden />,
+      rain: <CloudRain className="size-10 fill-sky-400/90 stroke-sky-300" aria-hidden />,
+      snow: <CloudSnow className="size-10 fill-slate-300 stroke-slate-200" aria-hidden />,
+      thunder: <Wind className="size-10 fill-yellow-400 stroke-yellow-500" aria-hidden />,
+      fog: <Cloud className="size-10 fill-white/60 stroke-white/50" aria-hidden />,
+    }
+
+    return iconMap[weather.condition.toLowerCase()] || iconMap.cloud
+  }
+
   return (
     <aside className={`${glass} w-72 px-6 py-6 text-white`} aria-label="Weather and time">
+      <p className="mb-2 text-xs text-white/60">{weather.location}</p>
       <div className="flex items-start justify-between">
         <div className="flex items-baseline">
-          <span className="text-6xl leading-none font-light tracking-tight drop-shadow-sm">24</span>
+          <span className="text-6xl leading-none font-light tracking-tight drop-shadow-sm">
+            {weather.isLoading ? "--" : weather.temperature}
+          </span>
           <span className="ml-1 text-3xl font-light">°</span>
         </div>
         <div className="relative mt-2">
-          <Cloud className="size-10 fill-white/90 stroke-white/70" aria-hidden />
-          <Sun
-            className="absolute -top-1 -right-1 size-5 fill-yellow-200 stroke-yellow-300"
-            aria-hidden
-          />
+          <WeatherIcon />
+          {!weather.isLoading && weather.condition.toLowerCase().includes('clear') && (
+            <Sun
+              className="absolute -top-1 -right-1 size-5 fill-yellow-200 stroke-yellow-300"
+              aria-hidden
+            />
+          )}
         </div>
       </div>
 
-      <p className="mt-3 text-base text-white/95">Mostly Sunny</p>
-      <p className="text-sm text-white/80">Feel like 24°</p>
+      <p className="mt-3 text-base text-white/95">
+        {weather.isLoading ? "Loading..." : weather.condition}
+      </p>
+      <p className="text-sm text-white/80">
+        Feel like {weather.isLoading ? "--" : weather.feelsLike}°
+      </p>
 
       <div className="my-5 h-px bg-white/30" />
 
-      <p className="text-3xl font-light tracking-wide drop-shadow-sm">14:35</p>
-      <p className="mt-1 text-sm text-white/80">May 20, 2024</p>
+      <p className="text-3xl font-light tracking-wide drop-shadow-sm">{time || "--:--"}</p>
+      <p className="mt-1 text-sm text-white/80">{date}</p>
+      <p className="text-xs text-white/60">{dayOfWeek}</p>
     </aside>
   )
 }
 
 /* ---------- Music player ---------- */
 function MusicPlayer() {
+  const { isPlaying, currentTrackInfo, currentTime, progress, togglePlay, nextTrack, prevTrack, seek, formatTime } = useAudio()
+  const progressBarRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleSeek = useCallback((clientX: number) => {
+    if (progressBarRef.current) {
+      const rect = progressBarRef.current.getBoundingClientRect()
+      const x = clientX - rect.left
+      const percentage = (x / rect.width) * 100
+      seek(Math.max(0, Math.min(100, percentage)))
+    }
+  }, [seek])
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true)
+    handleSeek(e.clientX)
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      handleSeek(e.clientX)
+    }
+  }, [isDragging, handleSeek])
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsDragging(true)
+    handleSeek(e.touches[0].clientX)
+  }
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (isDragging) {
+      handleSeek(e.touches[0].clientX)
+    }
+  }, [isDragging, handleSeek])
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      window.addEventListener('touchmove', handleTouchMove)
+      window.addEventListener('touchend', handleTouchEnd)
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd])
+
   return (
     <aside className={`${glass} w-72 px-6 py-6 text-white`} aria-label="Music player">
-      <div className="mb-4 grid size-12 place-items-center rounded-full border border-white/40 bg-white/15 backdrop-blur">
-        <Music2 className="size-6" aria-hidden />
+      <div className="mb-4 flex items-center justify-between">
+        <div className="grid size-12 place-items-center rounded-full border border-white/40 bg-white/15 backdrop-blur">
+          <Music2 className="size-6" aria-hidden />
+        </div>
+        <span className="text-xs text-white/60">
+          {isPlaying ? 'Playing' : 'Paused'}
+        </span>
       </div>
 
-      <h4 className="text-2xl font-medium tracking-tight">Dream Land</h4>
-      <p className="text-sm text-white/85">Oasis</p>
+      <h4 className="text-2xl font-medium tracking-tight">{currentTrackInfo.title}</h4>
+      <p className="text-sm text-white/85">{currentTrackInfo.artist}</p>
 
       <div className="mt-5 flex items-center gap-3">
-        <div className="relative h-1 flex-1 rounded-full bg-white/25">
-          <div className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-white/90" />
-          <div className="absolute top-1/2 left-2/5 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md" />
+        <div
+          ref={progressBarRef}
+          className="relative h-1 flex-1 rounded-full bg-white/25 cursor-pointer select-none"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          role="slider"
+          aria-label="Music progress"
+          aria-valuenow={Math.round(progress)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-white/90"
+            style={{ width: `${progress}%` }}
+          />
+          <div
+            className={`absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md transition-all ${isDragging ? 'scale-125' : ''}`}
+            style={{ left: `${progress}%` }}
+          />
         </div>
-        <span className="text-xs text-white/80 tabular-nums">02:35</span>
+        <span className="text-xs text-white/80 tabular-nums">{formatTime(currentTime)}</span>
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-6">
@@ -326,20 +462,27 @@ function MusicPlayer() {
           type="button"
           aria-label="Previous track"
           className="text-white/90 transition hover:text-white"
+          onClick={prevTrack}
         >
           <SkipBack className="size-5 fill-current" />
         </button>
         <button
           type="button"
-          aria-label="Pause"
+          aria-label={isPlaying ? "Pause" : "Play"}
           className="grid size-12 place-items-center rounded-full bg-white text-sky-600 shadow-lg transition hover:scale-105"
+          onClick={togglePlay}
         >
-          <Pause className="size-5 fill-current" />
+          {isPlaying ? (
+            <Pause className="size-5 fill-current" />
+          ) : (
+            <Play className="size-5 translate-x-[1px] fill-current" />
+          )}
         </button>
         <button
           type="button"
           aria-label="Next track"
           className="text-white/90 transition hover:text-white"
+          onClick={nextTrack}
         >
           <SkipForward className="size-5 fill-current" />
         </button>
@@ -350,22 +493,60 @@ function MusicPlayer() {
 
 /* ---------- Bottom dock ---------- */
 function Dock() {
-  const items = [
-    { icon: Home, label: "Home" },
-    { icon: Leaf, label: "Nature" },
-    { icon: Music2, label: "Music" },
-    { icon: Settings, label: "Settings" },
+  const router = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
+  const dockItems = [
+    {
+      icon: Home,
+      label: "Home",
+      onClick: () => router.push('/'),
+      isActive: false,
+    },
+    {
+      icon: Leaf,
+      label: "Nature",
+      onClick: () => router.push('/services'),
+      isActive: false,
+    },
+    {
+      icon: Music2,
+      label: "Music",
+      onClick: () => router.push('/gallery'),
+      isActive: false,
+    },
+    {
+      icon: Settings,
+      label: "Settings",
+      onClick: toggleTheme,
+      isActive: false,
+    },
   ]
+
   return (
     <div className="flex items-center gap-3">
-      {items.map(({ icon: Icon, label }) => (
+      {dockItems.map(({ icon: Icon, label, onClick }) => (
         <TiltCard key={label} max={20} parallax={4} ease={0.18}>
           <button
             type="button"
             aria-label={label}
             className={`${glass} grid size-14 place-items-center text-white transition hover:bg-white/25`}
+            onClick={onClick}
           >
-            <Icon className="size-6" aria-hidden />
+            {mounted && label === 'Settings' && theme === 'dark' ? (
+              <Sun className="size-6" aria-hidden />
+            ) : (
+              <Icon className="size-6" aria-hidden />
+            )}
           </button>
         </TiltCard>
       ))}
