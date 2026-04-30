@@ -50,114 +50,138 @@ interface AudioState {
   tracks: Track[]
 }
 
+let globalAudioInstance: HTMLAudioElement | null = null
+let globalState: AudioState = {
+  isPlaying: false,
+  currentTrack: 4,
+  currentTime: 0,
+  duration: 0,
+  progress: 0,
+  tracks: tracks,
+}
+const listeners = new Set<() => void>()
+
+function notifyListeners() {
+  listeners.forEach(listener => listener())
+}
+
 export function useAudio() {
+  const [state, setState] = useState<AudioState>(globalState)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [state, setState] = useState<AudioState>({
-    isPlaying: false,
-    currentTrack: 0,
-    currentTime: 0,
-    duration: 0,
-    progress: 0,
-    tracks: tracks,
-  })
 
   useEffect(() => {
-    audioRef.current = new Audio()
-    audioRef.current.src = state.tracks[0].url
-    audioRef.current.volume = 0.6
-    audioRef.current.preload = 'auto'
+    if (!globalAudioInstance) {
+      globalAudioInstance = new Audio()
+      globalAudioInstance.src = tracks[4].url
+      globalAudioInstance.volume = 0.6
+      globalAudioInstance.preload = 'auto'
 
-    const audio = audioRef.current
+      const audio = globalAudioInstance
 
-    const updateTime = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
-        setState((prev) => ({
-          ...prev,
-          currentTime: audio.currentTime,
-          duration: audio.duration,
-          progress: (audio.currentTime / audio.duration) * 100,
-        }))
+      const updateTime = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          globalState.currentTime = audio.currentTime
+          globalState.duration = audio.duration
+          globalState.progress = (audio.currentTime / audio.duration) * 100
+          notifyListeners()
+        }
       }
+
+      const handleEnded = () => {
+        const nextTrackIndex = (globalState.currentTrack + 1) % tracks.length
+        globalAudioInstance!.pause()
+        globalAudioInstance!.src = tracks[nextTrackIndex].url
+        globalAudioInstance!.load()
+        globalState.currentTrack = nextTrackIndex
+        globalState.currentTime = 0
+        globalState.progress = 0
+        if (globalState.isPlaying) {
+          globalAudioInstance!.play().catch(() => {})
+        }
+        notifyListeners()
+      }
+
+      const handleError = () => {
+        console.warn('Audio load error, continuing to next track')
+      }
+
+      const handleCanPlay = () => {
+        updateTime()
+        if (globalState.isPlaying) {
+          audio.play().catch(() => {})
+        }
+      }
+
+      audio.addEventListener('timeupdate', updateTime)
+      audio.addEventListener('ended', handleEnded)
+      audio.addEventListener('loadedmetadata', updateTime)
+      audio.addEventListener('canplay', handleCanPlay)
+      audio.addEventListener('error', handleError)
+
+      globalState.isPlaying = true
     }
 
-    const handleEnded = () => {
-      const nextTrackIndex = (state.currentTrack + 1) % state.tracks.length
-      changeTrack(nextTrackIndex)
-    }
+    audioRef.current = globalAudioInstance
 
-    const handleError = () => {
-      console.warn('Audio load error, continuing to next track')
+    const listener = () => {
+      setState({ ...globalState })
     }
-
-    const handleCanPlay = () => {
-      updateTime()
-    }
-
-    audio.addEventListener('timeupdate', updateTime)
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('loadedmetadata', updateTime)
-    audio.addEventListener('canplay', handleCanPlay)
-    audio.addEventListener('error', handleError)
+    listeners.add(listener)
+    setState({ ...globalState })
 
     return () => {
-      audio.removeEventListener('timeupdate', updateTime)
-      audio.removeEventListener('ended', handleEnded)
-      audio.removeEventListener('loadedmetadata', updateTime)
-      audio.removeEventListener('canplay', handleCanPlay)
-      audio.removeEventListener('error', handleError)
+      listeners.delete(listener)
     }
   }, [])
 
   const changeTrack = useCallback((index: number) => {
-    if (audioRef.current) {
-      const wasPlaying = state.isPlaying
-      audioRef.current.pause()
-      audioRef.current.src = state.tracks[index].url
-      audioRef.current.load()
+    if (globalAudioInstance) {
+      const wasPlaying = globalState.isPlaying
+      globalAudioInstance.pause()
+      globalAudioInstance.src = tracks[index].url
+      globalAudioInstance.load()
       
-      setState((prev) => ({
-        ...prev,
-        currentTrack: index,
-        currentTime: 0,
-        progress: 0,
-      }))
+      globalState.currentTrack = index
+      globalState.currentTime = 0
+      globalState.progress = 0
 
       if (wasPlaying) {
-        audioRef.current.play().catch(() => {})
+        globalAudioInstance.play().catch(() => {})
       }
+      notifyListeners()
     }
-  }, [state.isPlaying, state.tracks])
+  }, [])
 
   const togglePlay = useCallback(() => {
-    if (audioRef.current) {
-      if (state.isPlaying) {
-        audioRef.current.pause()
+    if (globalAudioInstance) {
+      if (globalState.isPlaying) {
+        globalAudioInstance.pause()
+        globalState.isPlaying = false
       } else {
-        audioRef.current.play().catch(() => {})
+        globalAudioInstance.play().catch(() => {})
+        globalState.isPlaying = true
       }
-      setState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }))
+      notifyListeners()
     }
-  }, [state.isPlaying])
+  }, [])
 
   const nextTrack = useCallback(() => {
-    const nextIndex = (state.currentTrack + 1) % state.tracks.length
+    const nextIndex = (globalState.currentTrack + 1) % tracks.length
     changeTrack(nextIndex)
-  }, [state.currentTrack, state.tracks, changeTrack])
+  }, [changeTrack])
 
   const prevTrack = useCallback(() => {
-    const prevIndex = (state.currentTrack - 1 + state.tracks.length) % state.tracks.length
+    const prevIndex = (globalState.currentTrack - 1 + tracks.length) % tracks.length
     changeTrack(prevIndex)
-  }, [state.currentTrack, state.tracks, changeTrack])
+  }, [changeTrack])
 
   const seek = useCallback(
     (progress: number) => {
-      if (audioRef.current && audioRef.current.duration && !isNaN(audioRef.current.duration)) {
-        audioRef.current.currentTime = (progress / 100) * audioRef.current.duration
-        setState((prev) => ({
-          ...prev,
-          currentTime: audioRef.current!.currentTime,
-          progress,
-        }))
+      if (globalAudioInstance && globalAudioInstance.duration && !isNaN(globalAudioInstance.duration)) {
+        globalAudioInstance.currentTime = (progress / 100) * globalAudioInstance.duration
+        globalState.currentTime = globalAudioInstance.currentTime
+        globalState.progress = progress
+        notifyListeners()
       }
     },
     []
@@ -172,7 +196,7 @@ export function useAudio() {
 
   return {
     ...state,
-    currentTrackInfo: state.tracks[state.currentTrack],
+    currentTrackInfo: tracks[state.currentTrack],
     togglePlay,
     nextTrack,
     prevTrack,

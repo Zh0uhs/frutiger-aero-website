@@ -11,13 +11,10 @@ import {
   Cloud,
   CloudRain,
   CloudSnow,
-  Home,
-  Leaf,
   Moon,
   Music2,
   Pause,
   Play,
-  Settings,
   SkipBack,
   SkipForward,
   Sun,
@@ -29,7 +26,7 @@ import { useAudio } from "@/hooks/useAudio"
 
 // Reusable glass panel utility classes (Frutiger Aero glassmorphism)
 const glass =
-  "rounded-2xl border border-white/40 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(31,77,122,0.15),inset_0_1px_0_rgba(255,255,255,0.6)]"
+  "rounded-2xl border border-white/60 bg-white/30 backdrop-blur-xl shadow-[0_8px_32px_rgba(31,77,122,0.25),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-2px_4px_rgba(0,0,0,0.05)]"
 
 /* ---------- Global mouse tracker ---------- */
 // Shared mouse position so every TiltCard reads from a single source
@@ -65,7 +62,7 @@ type TiltCardProps = {
   parallax?: number
 }
 
-function TiltCard({
+export function TiltCard({
   children,
   className = "",
   max = 14,
@@ -152,14 +149,12 @@ export function HarmonyHero() {
         {/* Top row: Nav + Hero + Weather */}
         <div className="flex flex-1 flex-col gap-8 lg:flex-row">
           {/* Left column */}
-          <div className="flex flex-col gap-8">
-            <TiltCard>
+          <TiltCard>
+            <div className="flex flex-col gap-8">
               <Navigation />
-            </TiltCard>
-            <TiltCard>
               <NaturalBalanceCard />
-            </TiltCard>
-          </div>
+            </div>
+          </TiltCard>
 
           {/* Center hero */}
           <div className="flex flex-1 flex-col items-center justify-start pt-6 lg:pt-16">
@@ -169,20 +164,14 @@ export function HarmonyHero() {
           </div>
 
           {/* Right column */}
-          <div className="flex flex-col items-end justify-between gap-8">
-            <TiltCard>
+          <TiltCard>
+            <div className="flex flex-col items-end justify-between gap-8">
               <WeatherWidget />
-            </TiltCard>
-            <TiltCard>
               <MusicPlayer />
-            </TiltCard>
-          </div>
+            </div>
+          </TiltCard>
         </div>
 
-        {/* Bottom dock */}
-        <div className="mt-8 flex justify-start">
-          <Dock />
-        </div>
       </div>
     </main>
   )
@@ -258,7 +247,7 @@ function HeroText() {
   return (
     <div className="flex flex-col items-center text-center text-white">
       <h1
-        className="text-5xl leading-[1.05] font-semibold tracking-tight text-balance md:text-6xl lg:text-7xl"
+        className="text-5xl leading-[1.05] font-light tracking-tight text-balance md:text-6xl lg:text-7xl"
         style={{
           textShadow: `
             0 0 20px rgba(255, 255, 255, 0.9),
@@ -457,11 +446,11 @@ function MusicPlayer() {
         <span className="text-xs text-white/80 tabular-nums">{formatTime(currentTime)}</span>
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-6">
+      <div className="mt-5 flex items-center justify-center gap-4">
         <button
           type="button"
           aria-label="Previous track"
-          className="text-white/90 transition hover:text-white"
+          className="grid size-10 place-items-center rounded-full border border-white/50 bg-white/30 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] text-white transition hover:bg-white/40"
           onClick={prevTrack}
         >
           <SkipBack className="size-5 fill-current" />
@@ -469,87 +458,24 @@ function MusicPlayer() {
         <button
           type="button"
           aria-label={isPlaying ? "Pause" : "Play"}
-          className="grid size-12 place-items-center rounded-full bg-white text-sky-600 shadow-lg transition hover:scale-105"
+          className="grid size-14 place-items-center rounded-full border border-white/60 bg-white/40 backdrop-blur-lg shadow-[0_4px_16px_rgba(31,77,122,0.2),inset_0_2px_4px_rgba(255,255,255,0.5)] text-white transition hover:bg-white/50"
           onClick={togglePlay}
         >
           {isPlaying ? (
-            <Pause className="size-5 fill-current" />
+            <Pause className="size-6 fill-current" />
           ) : (
-            <Play className="size-5 translate-x-[1px] fill-current" />
+            <Play className="size-6 translate-x-[1px] fill-current" />
           )}
         </button>
         <button
           type="button"
           aria-label="Next track"
-          className="text-white/90 transition hover:text-white"
+          className="grid size-10 place-items-center rounded-full border border-white/50 bg-white/30 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] text-white transition hover:bg-white/40"
           onClick={nextTrack}
         >
           <SkipForward className="size-5 fill-current" />
         </button>
       </div>
     </aside>
-  )
-}
-
-/* ---------- Bottom dock ---------- */
-function Dock() {
-  const router = useRouter()
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
-  }
-
-  const dockItems = [
-    {
-      icon: Home,
-      label: "Home",
-      onClick: () => router.push('/'),
-      isActive: false,
-    },
-    {
-      icon: Leaf,
-      label: "Nature",
-      onClick: () => router.push('/services'),
-      isActive: false,
-    },
-    {
-      icon: Music2,
-      label: "Music",
-      onClick: () => router.push('/gallery'),
-      isActive: false,
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      onClick: toggleTheme,
-      isActive: false,
-    },
-  ]
-
-  return (
-    <div className="flex items-center gap-3">
-      {dockItems.map(({ icon: Icon, label, onClick }) => (
-        <TiltCard key={label} max={20} parallax={4} ease={0.18}>
-          <button
-            type="button"
-            aria-label={label}
-            className={`${glass} grid size-14 place-items-center text-white transition hover:bg-white/25`}
-            onClick={onClick}
-          >
-            {mounted && label === 'Settings' && theme === 'dark' ? (
-              <Sun className="size-6" aria-hidden />
-            ) : (
-              <Icon className="size-6" aria-hidden />
-            )}
-          </button>
-        </TiltCard>
-      ))}
-    </div>
   )
 }
