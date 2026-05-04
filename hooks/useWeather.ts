@@ -181,6 +181,7 @@ export function useWeather() {
         { 
           name: '淘宝IP', 
           url: 'http://ip.taobao.com/service/getIpInfo.php', 
+          params: undefined,
           parse: (d: any) => {
             const data = d.data
             return {
@@ -194,7 +195,7 @@ export function useWeather() {
         { 
           name: '腾讯IP', 
           url: 'https://apis.map.qq.com/ws/location/v1/ip', 
-          params: { key: 'OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77' },
+          params: { key: 'OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77' } as Record<string, string>,
           parse: (d: any) => {
             const result = d.result
             return {
@@ -208,7 +209,7 @@ export function useWeather() {
         { 
           name: '新浪IP', 
           url: 'http://int.dpool.sina.com.cn/iplookup/iplookup.php', 
-          params: { format: 'json' },
+          params: { format: 'json' } as Record<string, string>,
           parse: (d: any) => ({ 
             ip: d.ip,
             lat: DEFAULT_LAT,
@@ -219,6 +220,7 @@ export function useWeather() {
         { 
           name: 'ipinfo.io', 
           url: 'https://ipinfo.io/json', 
+          params: undefined,
           parse: (d: any) => ({ 
             ip: d.ip,
             lat: parseFloat(d.loc?.split(',')[0]), 
