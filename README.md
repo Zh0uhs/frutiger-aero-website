@@ -166,8 +166,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 联系方式 / Contact
 
-- GitHub: [Zh0uhs](https://github.com/Zh0uhs)
-- Repository: [frutiger-aero-website](https://github.com/Zh0uhs/frutiger-aero-website)
+- QQ: [2659196009@qq.com]
 
 ---
 
